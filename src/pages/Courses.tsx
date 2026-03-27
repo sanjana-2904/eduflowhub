@@ -22,9 +22,18 @@ export default function Courses() {
     const fetchCourses = async () => {
       const { data } = await supabase
         .from('courses')
-        .select('*, profiles!courses_instructor_id_fkey(first_name, last_name)')
+        .select('*')
         .order('created_at', { ascending: false });
-      setCourses((data as Course[]) || []);
+      
+      // Fetch instructor profiles separately
+      if (data && data.length > 0) {
+        const instructorIds = [...new Set(data.map(c => c.instructor_id))];
+        const { data: profiles } = await supabase.from('profiles').select('user_id, first_name, last_name').in('user_id', instructorIds);
+        const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+        setCourses(data.map(c => ({ ...c, profiles: profileMap.get(c.instructor_id) || null })) as Course[]);
+      } else {
+        setCourses([]);
+      }
       setLoading(false);
     };
     fetchCourses();

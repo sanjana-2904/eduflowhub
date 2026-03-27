@@ -26,9 +26,12 @@ export default function CourseDetail() {
     if (!id) return;
     const fetch = async () => {
       const { data: c } = await supabase.from('courses')
-        .select('*, profiles!courses_instructor_id_fkey(first_name, last_name)')
+        .select('*')
         .eq('id', id).single();
-      setCourse(c as Course);
+      if (c) {
+        const { data: p } = await supabase.from('profiles').select('first_name, last_name').eq('user_id', c.instructor_id).single();
+        setCourse({ ...c, profiles: p } as Course);
+      }
 
       const { data: l } = await supabase.from('lessons')
         .select('*').eq('course_id', id).order('sort_order');
