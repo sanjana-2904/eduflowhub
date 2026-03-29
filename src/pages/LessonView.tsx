@@ -84,23 +84,36 @@ export default function LessonView() {
         <h1 className="text-3xl font-bold font-display mb-6">{lesson.title}</h1>
 
         {/* Lesson content */}
-        <Card className="mb-8">
-          <CardContent className="pt-6">
-            {lesson.content_type === 'video' && lesson.content_url && (
+        {lesson.content_type === 'video' && lesson.content_url && (
+          <Card className="mb-6">
+            <CardContent className="pt-6">
               <div className="aspect-video">
                 <iframe src={lesson.content_url} className="w-full h-full rounded-lg" allowFullScreen />
               </div>
-            )}
-            {lesson.content_type === 'pdf' && lesson.content_url && (
+            </CardContent>
+          </Card>
+        )}
+        {lesson.content_type === 'pdf' && lesson.content_url && (
+          <Card className="mb-6">
+            <CardContent className="pt-6">
               <iframe src={lesson.content_url} className="w-full h-[600px] rounded-lg" />
-            )}
-            {lesson.content_type === 'text' && (
-              <div className="prose max-w-none">
-                <p className="whitespace-pre-wrap">{lesson.content_text}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Lesson Notes */}
+        {lesson.content_text && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="font-display text-lg">📒 Lesson Notes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="prose prose-sm max-w-none dark:prose-invert whitespace-pre-wrap leading-relaxed">
+                {lesson.content_text}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Quiz */}
         {quiz && (
