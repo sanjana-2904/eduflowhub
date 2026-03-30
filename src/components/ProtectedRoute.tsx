@@ -6,6 +6,8 @@ interface ProtectedRouteProps {
   allowedRoles?: ('admin' | 'instructor' | 'student')[];
 }
 
+const ADMIN_EMAIL = 'piyaadhikary91@gmail.com';
+
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const { user, role, loading } = useAuth();
 
@@ -18,6 +20,12 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   if (!user) return <Navigate to="/login" replace />;
+  
+  // Only the designated admin email can access admin routes
+  if (allowedRoles?.includes('admin') && user.email !== ADMIN_EMAIL) {
+    return <Navigate to="/" replace />;
+  }
+  
   if (allowedRoles && role && !allowedRoles.includes(role)) return <Navigate to="/" replace />;
 
   return <>{children}</>;

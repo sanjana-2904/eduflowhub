@@ -95,6 +95,7 @@ export default function Register() {
                   <SelectItem value="student">Student</SelectItem>
                   <SelectItem value="instructor">Instructor</SelectItem>
                 </SelectContent>
+                <p className="text-xs text-muted-foreground">Admin access is restricted and cannot be self-registered.</p>
               </Select>
             </div>
             {form.role === 'instructor' && (
