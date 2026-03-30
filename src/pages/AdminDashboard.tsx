@@ -30,9 +30,19 @@ export default function AdminDashboard() {
   };
 
   const deleteProfile = async (userId: string) => {
-    // Admin can't delete via profiles directly due to auth.users FK
-    // This would need an edge function with admin privileges
-    toast({ title: 'Delete requires server-side admin action', description: 'Edge function needed for user deletion.' });
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ user_id: userId }),
+    });
+    const result = await res.json();
+    if (!res.ok) toast({ title: 'Error', description: result.error, variant: 'destructive' });
+    else { toast({ title: 'User deleted successfully' }); fetchData(); }
   };
 
   const deleteCourse = async (id: string) => {
