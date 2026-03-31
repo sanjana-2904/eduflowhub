@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, BookCheck } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 export default function LessonView() {
@@ -23,6 +23,7 @@ export default function LessonView() {
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState<number | null>(null);
   const [existingResult, setExistingResult] = useState<Tables<'results'> | null>(null);
+  const [lessonCompleted, setLessonCompleted] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -46,6 +47,13 @@ export default function LessonView() {
             setSubmitted(true);
           }
         }
+      }
+
+      // Check lesson completion
+      if (user) {
+        const { data: prog } = await supabase.from('lesson_progress')
+          .select('completed').eq('lesson_id', id).eq('student_id', user.id).maybeSingle();
+        setLessonCompleted(!!prog?.completed);
       }
     };
     fetch();
