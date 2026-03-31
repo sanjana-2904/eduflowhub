@@ -7,11 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, BookOpen, Users, Trash2, Edit, FileText } from 'lucide-react';
+import { Plus, BookOpen, Users, Trash2, Edit, FileText, Download, Eye } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
+
+type EnrolledStudent = { student_id: string; enrollment_date: string; profiles: { first_name: string; last_name: string; email: string } | null };
+type QuizResult = { score: number; created_at: string; student_id: string; profiles: { first_name: string; last_name: string; email: string } | null };
 
 export default function InstructorDashboard() {
   const { user } = useAuth();
@@ -21,6 +25,15 @@ export default function InstructorDashboard() {
   const [lessons, setLessons] = useState<Tables<'lessons'>[]>([]);
   const [quizzes, setQuizzes] = useState<Tables<'quizzes'>[]>([]);
   const [enrollmentCounts, setEnrollmentCounts] = useState<Record<string, number>>({});
+
+  // Enrolled students
+  const [enrolledStudents, setEnrolledStudents] = useState<EnrolledStudent[]>([]);
+  const [studentsDialog, setStudentsDialog] = useState(false);
+
+  // Quiz results
+  const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
+  const [resultsDialog, setResultsDialog] = useState(false);
+  const [resultsQuizTitle, setResultsQuizTitle] = useState('');
 
   // Course form
   const [courseDialog, setCourseDialog] = useState(false);
@@ -38,10 +51,7 @@ export default function InstructorDashboard() {
   const [editingQuiz, setEditingQuiz] = useState<string | null>(null);
   const [quizQuestions, setQuizQuestions] = useState<Tables<'quiz_questions'>[]>([]);
 
-  useEffect(() => {
-    if (!user) return;
-    fetchCourses();
-  }, [user]);
+  useEffect(() => { if (user) fetchCourses(); }, [user]);
 
   useEffect(() => {
     if (selectedCourse) {
@@ -76,6 +86,29 @@ export default function InstructorDashboard() {
     } else {
       setQuizzes([]);
     }
+  };
+
+  const viewEnrolledStudents = async (courseId: string) => {
+    const { data } = await supabase.from('enrollments').select('student_id, enrollment_date, profiles:student_id(first_name, last_name, email)').eq('course_id', courseId) as any;
+    setEnrolledStudents(data || []);
+    setStudentsDialog(true);
+  };
+
+  const viewQuizResults = async (quizId: string, quizTitle: string) => {
+    const { data } = await supabase.from('results').select('score, created_at, student_id, profiles:student_id(first_name, last_name, email)').eq('quiz_id', quizId).order('created_at', { ascending: false }) as any;
+    setQuizResults(data || []);
+    setResultsQuizTitle(quizTitle);
+    setResultsDialog(true);
+  };
+
+  const exportResults = () => {
+    const csv = ['Student Name,Email,Score,Date',
+      ...quizResults.map(r => `${r.profiles?.first_name || ''} ${r.profiles?.last_name || ''},${r.profiles?.email || ''},${r.score}%,${new Date(r.created_at).toLocaleDateString()}`)
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `${resultsQuizTitle}-results.csv`; a.click();
+    URL.revokeObjectURL(url);
   };
 
   const saveCourse = async () => {
@@ -130,11 +163,8 @@ export default function InstructorDashboard() {
   const addQuestion = async () => {
     if (!editingQuiz) return;
     await supabase.from('quiz_questions').insert({
-      quiz_id: editingQuiz,
-      question: questionForm.question,
-      options: questionForm.options,
-      correct_answer: questionForm.correct_answer,
-      sort_order: quizQuestions.length,
+      quiz_id: editingQuiz, question: questionForm.question,
+      options: questionForm.options, correct_answer: questionForm.correct_answer, sort_order: quizQuestions.length,
     });
     setQuestionForm({ question: '', options: ['', '', '', ''], correct_answer: 0 });
     const { data } = await supabase.from('quiz_questions').select('*').eq('quiz_id', editingQuiz).order('sort_order');
@@ -180,7 +210,10 @@ export default function InstructorDashboard() {
                     <div>
                       <p className="font-medium">{c.title}</p>
                       <p className="text-xs text-muted-foreground">{c.category} · ₹{c.price}</p>
-                      <p className="text-xs text-muted-foreground mt-1"><Users className="inline h-3 w-3" /> {enrollmentCounts[c.id] || 0} enrolled</p>
+                      <button className="text-xs text-primary hover:underline mt-1 flex items-center gap-1"
+                        onClick={(e) => { e.stopPropagation(); viewEnrolledStudents(c.id); }}>
+                        <Users className="inline h-3 w-3" /> {enrollmentCounts[c.id] || 0} enrolled — View
+                      </button>
                     </div>
                     <div className="flex gap-1">
                       <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingCourse(c.id); setCourseForm({ title: c.title, description: c.description || '', price: String(c.price), category: c.category || '' }); setCourseDialog(true); }}>
@@ -291,8 +324,11 @@ export default function InstructorDashboard() {
                         setEditingQuiz(q.id);
                         supabase.from('quiz_questions').select('*').eq('quiz_id', q.id).order('sort_order').then(({ data }) => setQuizQuestions(data || []));
                       }}>
-                      <CardContent className="py-3">
+                      <CardContent className="flex items-center justify-between py-3">
                         <p className="font-medium text-sm">{q.title}</p>
+                        <Button size="sm" variant="outline" className="gap-1" onClick={(e) => { e.stopPropagation(); viewQuizResults(q.id, q.title); }}>
+                          <Eye className="h-3 w-3" /> Results
+                        </Button>
                       </CardContent>
                     </Card>
                   ))}
@@ -341,6 +377,60 @@ export default function InstructorDashboard() {
             </div>
           )}
         </div>
+
+        {/* Enrolled Students Dialog */}
+        <Dialog open={studentsDialog} onOpenChange={setStudentsDialog}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader><DialogTitle>Enrolled Students</DialogTitle></DialogHeader>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {enrolledStudents.map((s, i) => (
+                <Card key={i}>
+                  <CardContent className="flex items-center justify-between py-3">
+                    <div>
+                      <p className="font-medium text-sm">{s.profiles?.first_name} {s.profiles?.last_name}</p>
+                      <p className="text-xs text-muted-foreground">{s.profiles?.email}</p>
+                    </div>
+                    <Badge variant="secondary">{new Date(s.enrollment_date).toLocaleDateString()}</Badge>
+                  </CardContent>
+                </Card>
+              ))}
+              {enrolledStudents.length === 0 && <p className="text-muted-foreground text-sm">No students enrolled yet.</p>}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Quiz Results Dialog */}
+        <Dialog open={resultsDialog} onOpenChange={setResultsDialog}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <div className="flex items-center justify-between">
+                <DialogTitle>Results: {resultsQuizTitle}</DialogTitle>
+                {quizResults.length > 0 && (
+                  <Button size="sm" variant="outline" className="gap-1" onClick={exportResults}>
+                    <Download className="h-3 w-3" /> Export CSV
+                  </Button>
+                )}
+              </div>
+            </DialogHeader>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {quizResults.map((r, i) => (
+                <Card key={i}>
+                  <CardContent className="flex items-center justify-between py-3">
+                    <div>
+                      <p className="font-medium text-sm">{r.profiles?.first_name} {r.profiles?.last_name}</p>
+                      <p className="text-xs text-muted-foreground">{r.profiles?.email}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`font-bold ${r.score >= 50 ? 'text-success' : 'text-destructive'}`}>{r.score}%</span>
+                      <p className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {quizResults.length === 0 && <p className="text-muted-foreground text-sm">No results yet.</p>}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

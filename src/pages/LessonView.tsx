@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, BookCheck } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 export default function LessonView() {
@@ -23,6 +23,7 @@ export default function LessonView() {
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState<number | null>(null);
   const [existingResult, setExistingResult] = useState<Tables<'results'> | null>(null);
+  const [lessonCompleted, setLessonCompleted] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -46,6 +47,13 @@ export default function LessonView() {
             setSubmitted(true);
           }
         }
+      }
+
+      // Check lesson completion
+      if (user) {
+        const { data: prog } = await supabase.from('lesson_progress')
+          .select('completed').eq('lesson_id', id).eq('student_id', user.id).maybeSingle();
+        setLessonCompleted(!!prog?.completed);
       }
     };
     fetch();
@@ -77,9 +85,28 @@ export default function LessonView() {
   return (
     <Layout>
       <div className="container py-10 max-w-4xl">
-        <Button variant="ghost" className="mb-6 gap-2" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Button>
+        <div className="flex items-center justify-between mb-6">
+          <Button variant="ghost" className="gap-2" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Button>
+          {user && (
+            <Button
+              variant={lessonCompleted ? 'secondary' : 'default'}
+              className={`gap-2 ${!lessonCompleted ? 'gradient-primary text-primary-foreground border-0' : ''}`}
+              onClick={async () => {
+                if (lessonCompleted || !id) return;
+                const { error } = await supabase.from('lesson_progress').upsert({
+                  student_id: user.id, lesson_id: id, completed: true, completed_at: new Date().toISOString(),
+                });
+                if (!error) { setLessonCompleted(true); toast({ title: 'Lesson marked as complete! ✅' }); }
+              }}
+              disabled={lessonCompleted}
+            >
+              <BookCheck className="h-4 w-4" />
+              {lessonCompleted ? 'Completed ✅' : 'Mark as Complete'}
+            </Button>
+          )}
+        </div>
 
         <h1 className="text-3xl font-bold font-display mb-6">{lesson.title}</h1>
 
