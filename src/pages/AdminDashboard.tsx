@@ -4,9 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Users, BookOpen, Trash2, Shield } from 'lucide-react';
+import { Users, BookOpen, Trash2, Shield, Edit } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 export default function AdminDashboard() {
@@ -14,10 +17,11 @@ export default function AdminDashboard() {
   const [students, setStudents] = useState<Tables<'profiles'>[]>([]);
   const [instructors, setInstructors] = useState<Tables<'profiles'>[]>([]);
   const [courses, setCourses] = useState<Tables<'courses'>[]>([]);
+  const [editDialog, setEditDialog] = useState(false);
+  const [editingProfile, setEditingProfile] = useState<Tables<'profiles'> | null>(null);
+  const [editForm, setEditForm] = useState({ first_name: '', last_name: '', phone: '', qualification: '' });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     const { data: profiles } = await supabase.from('profiles').select('*');
@@ -34,10 +38,7 @@ export default function AdminDashboard() {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session?.access_token}`,
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
       body: JSON.stringify({ user_id: userId }),
     });
     const result = await res.json();
@@ -45,11 +46,56 @@ export default function AdminDashboard() {
     else { toast({ title: 'User deleted successfully' }); fetchData(); }
   };
 
+  const openEdit = (profile: Tables<'profiles'>) => {
+    setEditingProfile(profile);
+    setEditForm({
+      first_name: profile.first_name || '',
+      last_name: profile.last_name || '',
+      phone: profile.phone || '',
+      qualification: profile.qualification || '',
+    });
+    setEditDialog(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editingProfile) return;
+    const { error } = await supabase.from('profiles').update({
+      first_name: editForm.first_name,
+      last_name: editForm.last_name,
+      phone: editForm.phone,
+      qualification: editForm.qualification,
+    }).eq('id', editingProfile.id);
+    if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    else { toast({ title: 'Profile updated' }); setEditDialog(false); fetchData(); }
+  };
+
   const deleteCourse = async (id: string) => {
     const { error } = await supabase.from('courses').delete().eq('id', id);
     if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
     else { toast({ title: 'Course deleted' }); fetchData(); }
   };
+
+  const renderUserCard = (p: Tables<'profiles'>, roleLabel: string, badgeVariant: 'default' | 'secondary' = 'default') => (
+    <Card key={p.id}>
+      <CardContent className="flex items-center justify-between py-4">
+        <div>
+          <p className="font-medium">{p.first_name} {p.last_name}</p>
+          <p className="text-sm text-muted-foreground">{p.email}</p>
+          {p.phone && <p className="text-xs text-muted-foreground">📞 {p.phone}</p>}
+          {p.qualification && <p className="text-xs text-muted-foreground">🎓 {p.qualification}</p>}
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant={badgeVariant}>{roleLabel}</Badge>
+          <Button size="icon" variant="ghost" onClick={() => openEdit(p)}>
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button size="icon" variant="ghost" onClick={() => deleteProfile(p.user_id)}>
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <Layout>
@@ -65,28 +111,19 @@ export default function AdminDashboard() {
           <Card>
             <CardContent className="pt-6 flex items-center gap-4">
               <Users className="h-8 w-8 text-primary" />
-              <div>
-                <p className="text-2xl font-bold">{students.length}</p>
-                <p className="text-sm text-muted-foreground">Students</p>
-              </div>
+              <div><p className="text-2xl font-bold">{students.length}</p><p className="text-sm text-muted-foreground">Students</p></div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6 flex items-center gap-4">
               <Users className="h-8 w-8 text-accent" />
-              <div>
-                <p className="text-2xl font-bold">{instructors.length}</p>
-                <p className="text-sm text-muted-foreground">Instructors</p>
-              </div>
+              <div><p className="text-2xl font-bold">{instructors.length}</p><p className="text-sm text-muted-foreground">Instructors</p></div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6 flex items-center gap-4">
               <BookOpen className="h-8 w-8 text-warning" />
-              <div>
-                <p className="text-2xl font-bold">{courses.length}</p>
-                <p className="text-sm text-muted-foreground">Courses</p>
-              </div>
+              <div><p className="text-2xl font-bold">{courses.length}</p><p className="text-sm text-muted-foreground">Courses</p></div>
             </CardContent>
           </Card>
         </div>
@@ -97,53 +134,18 @@ export default function AdminDashboard() {
             <TabsTrigger value="instructors">Instructors</TabsTrigger>
             <TabsTrigger value="courses">Courses</TabsTrigger>
           </TabsList>
-
           <TabsContent value="students" className="mt-6">
             <div className="space-y-3">
-              {students.map(s => (
-                <Card key={s.id}>
-                  <CardContent className="flex items-center justify-between py-4">
-                    <div>
-                      <p className="font-medium">{s.first_name} {s.last_name}</p>
-                      <p className="text-sm text-muted-foreground">{s.email}</p>
-                      {s.phone && <p className="text-xs text-muted-foreground">{s.phone}</p>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge>Student</Badge>
-                      <Button size="icon" variant="ghost" onClick={() => deleteProfile(s.user_id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              {students.map(s => renderUserCard(s, 'Student'))}
               {students.length === 0 && <p className="text-muted-foreground">No students registered.</p>}
             </div>
           </TabsContent>
-
           <TabsContent value="instructors" className="mt-6">
             <div className="space-y-3">
-              {instructors.map(i => (
-                <Card key={i.id}>
-                  <CardContent className="flex items-center justify-between py-4">
-                    <div>
-                      <p className="font-medium">{i.first_name} {i.last_name}</p>
-                      <p className="text-sm text-muted-foreground">{i.email}</p>
-                      {i.qualification && <p className="text-xs text-muted-foreground">Qualification: {i.qualification}</p>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">Instructor</Badge>
-                      <Button size="icon" variant="ghost" onClick={() => deleteProfile(i.user_id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              {instructors.map(i => renderUserCard(i, 'Instructor', 'secondary'))}
               {instructors.length === 0 && <p className="text-muted-foreground">No instructors registered.</p>}
             </div>
           </TabsContent>
-
           <TabsContent value="courses" className="mt-6">
             <div className="space-y-3">
               {courses.map(c => (
@@ -163,6 +165,22 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Edit Profile Dialog */}
+        <Dialog open={editDialog} onOpenChange={setEditDialog}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Edit Profile</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>First Name</Label><Input value={editForm.first_name} onChange={e => setEditForm(f => ({ ...f, first_name: e.target.value }))} /></div>
+                <div className="space-y-2"><Label>Last Name</Label><Input value={editForm.last_name} onChange={e => setEditForm(f => ({ ...f, last_name: e.target.value }))} /></div>
+              </div>
+              <div className="space-y-2"><Label>Phone</Label><Input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} /></div>
+              <div className="space-y-2"><Label>Qualification</Label><Input value={editForm.qualification} onChange={e => setEditForm(f => ({ ...f, qualification: e.target.value }))} /></div>
+              <Button onClick={saveEdit} className="w-full">Save Changes</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

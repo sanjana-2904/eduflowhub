@@ -5,26 +5,45 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { BookOpen, Award, TrendingUp } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
+type EnrollmentWithCourse = Tables<'enrollments'> & { courses: Tables<'courses'> | null };
+
 export default function StudentDashboard() {
   const { user } = useAuth();
-  const [enrollments, setEnrollments] = useState<(Tables<'enrollments'> & { courses: Tables<'courses'> | null })[]>([]);
+  const [enrollments, setEnrollments] = useState<EnrollmentWithCourse[]>([]);
   const [results, setResults] = useState<(Tables<'results'> & { quizzes: Tables<'quizzes'> | null })[]>([]);
+  const [courseProgress, setCourseProgress] = useState<Record<string, { completed: number; total: number }>>({});
 
   useEffect(() => {
     if (!user) return;
-    const fetch = async () => {
+    const fetchData = async () => {
       const { data: e } = await supabase.from('enrollments')
         .select('*, courses(*)').eq('student_id', user.id);
-      setEnrollments((e as any) || []);
+      const enrolls = (e as any) || [];
+      setEnrollments(enrolls);
 
       const { data: r } = await supabase.from('results')
         .select('*, quizzes(*)').eq('student_id', user.id).order('created_at', { ascending: false });
       setResults((r as any) || []);
+
+      // Fetch progress for each course
+      const progress: Record<string, { completed: number; total: number }> = {};
+      for (const en of enrolls) {
+        const { data: lessons } = await supabase.from('lessons').select('id').eq('course_id', en.course_id);
+        const total = lessons?.length || 0;
+        const { count } = await supabase.from('lesson_progress')
+          .select('*', { count: 'exact', head: true })
+          .eq('student_id', user.id)
+          .in('lesson_id', (lessons || []).map(l => l.id))
+          .eq('completed', true);
+        progress[en.course_id] = { completed: count || 0, total };
+      }
+      setCourseProgress(progress);
     };
-    fetch();
+    fetchData();
   }, [user]);
 
   return (
@@ -81,8 +100,17 @@ export default function StudentDashboard() {
                   <CardHeader>
                     <CardTitle className="text-lg font-display">{e.courses.title}</CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-3">
                     <Badge variant={e.status === 'active' ? 'default' : 'secondary'}>{e.status}</Badge>
+                    {courseProgress[e.course_id] && (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Progress</span>
+                          <span>{courseProgress[e.course_id].completed}/{courseProgress[e.course_id].total} lessons</span>
+                        </div>
+                        <Progress value={courseProgress[e.course_id].total > 0 ? (courseProgress[e.course_id].completed / courseProgress[e.course_id].total) * 100 : 0} />
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </Link>

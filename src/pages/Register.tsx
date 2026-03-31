@@ -31,6 +31,9 @@ export default function Register() {
       await signUp(form.email, form.password, {
         first_name: form.first_name,
         last_name: form.last_name,
+        middle_name: form.middle_name,
+        phone: form.phone,
+        qualification: form.qualification,
         role: form.role,
       });
       toast({ title: 'Account created!', description: 'Please check your email to verify.' });
