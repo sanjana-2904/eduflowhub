@@ -34,10 +34,15 @@ export default function StudentDashboard() {
       for (const en of enrolls) {
         const { data: lessons } = await supabase.from('lessons').select('id').eq('course_id', en.course_id);
         const total = lessons?.length || 0;
+        if (total === 0) {
+          progress[en.course_id] = { completed: 0, total: 0 };
+          continue;
+        }
+        const lessonIds = lessons!.map(l => l.id);
         const { count } = await supabase.from('lesson_progress')
           .select('*', { count: 'exact', head: true })
           .eq('student_id', user.id)
-          .in('lesson_id', (lessons || []).map(l => l.id))
+          .in('lesson_id', lessonIds)
           .eq('completed', true);
         progress[en.course_id] = { completed: count || 0, total };
       }
