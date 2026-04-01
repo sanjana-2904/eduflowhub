@@ -106,16 +106,25 @@ export default function StudentDashboard() {
                     <CardTitle className="text-lg font-display">{e.courses.title}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <Badge variant={e.status === 'active' ? 'default' : 'secondary'}>{e.status}</Badge>
-                    {courseProgress[e.course_id] && (
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Progress</span>
-                          <span>{courseProgress[e.course_id].completed}/{courseProgress[e.course_id].total} lessons</span>
-                        </div>
-                        <Progress value={courseProgress[e.course_id].total > 0 ? (courseProgress[e.course_id].completed / courseProgress[e.course_id].total) * 100 : 0} />
-                      </div>
-                    )}
+                    {courseProgress[e.course_id] && (() => {
+                      const { completed, total } = courseProgress[e.course_id];
+                      const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+                      const isComplete = total > 0 && completed === total;
+                      return (
+                        <>
+                          <Badge variant={isComplete ? 'default' : 'secondary'}>
+                            {isComplete ? 'Completed' : percent > 0 ? 'In Progress' : 'Not Started'}
+                          </Badge>
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>Progress</span>
+                              <span>{completed}/{total} lessons ({percent}%)</span>
+                            </div>
+                            <Progress value={percent} />
+                          </div>
+                        </>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               </Link>
