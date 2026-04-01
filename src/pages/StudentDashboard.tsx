@@ -34,10 +34,15 @@ export default function StudentDashboard() {
       for (const en of enrolls) {
         const { data: lessons } = await supabase.from('lessons').select('id').eq('course_id', en.course_id);
         const total = lessons?.length || 0;
+        if (total === 0) {
+          progress[en.course_id] = { completed: 0, total: 0 };
+          continue;
+        }
+        const lessonIds = lessons!.map(l => l.id);
         const { count } = await supabase.from('lesson_progress')
           .select('*', { count: 'exact', head: true })
           .eq('student_id', user.id)
-          .in('lesson_id', (lessons || []).map(l => l.id))
+          .in('lesson_id', lessonIds)
           .eq('completed', true);
         progress[en.course_id] = { completed: count || 0, total };
       }
@@ -101,16 +106,25 @@ export default function StudentDashboard() {
                     <CardTitle className="text-lg font-display">{e.courses.title}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <Badge variant={e.status === 'active' ? 'default' : 'secondary'}>{e.status}</Badge>
-                    {courseProgress[e.course_id] && (
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Progress</span>
-                          <span>{courseProgress[e.course_id].completed}/{courseProgress[e.course_id].total} lessons</span>
-                        </div>
-                        <Progress value={courseProgress[e.course_id].total > 0 ? (courseProgress[e.course_id].completed / courseProgress[e.course_id].total) * 100 : 0} />
-                      </div>
-                    )}
+                    {courseProgress[e.course_id] && (() => {
+                      const { completed, total } = courseProgress[e.course_id];
+                      const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+                      const isComplete = total > 0 && completed === total;
+                      return (
+                        <>
+                          <Badge variant={isComplete ? 'default' : 'secondary'}>
+                            {isComplete ? 'Completed' : percent > 0 ? 'In Progress' : 'Not Started'}
+                          </Badge>
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>Progress</span>
+                              <span>{completed}/{total} lessons ({percent}%)</span>
+                            </div>
+                            <Progress value={percent} />
+                          </div>
+                        </>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               </Link>
