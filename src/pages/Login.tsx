@@ -66,10 +66,13 @@ export default function Login() {
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
-          <p className="text-center text-sm text-muted-foreground mt-4">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-primary font-medium hover:underline">Register</Link>
-          </p>
+          <div className="flex justify-between items-center text-sm text-muted-foreground mt-4">
+            <Link to="/forgot-password" className="text-primary font-medium hover:underline">Forgot Password?</Link>
+            <span>
+              Don't have an account?{' '}
+              <Link to="/register" className="text-primary font-medium hover:underline">Register</Link>
+            </span>
+          </div>
         </CardContent>
       </Card>
     </div>
