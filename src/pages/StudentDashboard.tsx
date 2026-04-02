@@ -6,8 +6,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { BookOpen, Award, TrendingUp } from 'lucide-react';
+import { BookOpen, Award, TrendingUp, Download } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { Tables } from '@/integrations/supabase/types';
+import jsPDF from 'jspdf';
 
 type EnrollmentWithCourse = Tables<'enrollments'> & { courses: Tables<'courses'> | null };
 
