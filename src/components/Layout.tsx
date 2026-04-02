@@ -39,11 +39,11 @@ export function Layout({ children }: { children: ReactNode }) {
                   </Button>
                 </Link>
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary text-sm">
+                  <Link to={role === 'student' ? '/profile' : '#'} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary text-sm hover:bg-secondary/80 transition-colors">
                     <User className="h-3.5 w-3.5" />
                     <span className="font-medium">{profile?.first_name || 'User'}</span>
                     <span className="text-xs px-1.5 py-0.5 rounded-full gradient-primary text-primary-foreground capitalize">{role}</span>
-                  </div>
+                  </Link>
                   <Button variant="ghost" size="icon" onClick={handleSignOut}>
                     <LogOut className="h-4 w-4" />
                   </Button>

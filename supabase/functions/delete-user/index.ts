@@ -24,11 +24,18 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: caller } } = await callerClient.auth.getUser();
-    if (!caller || caller.email !== "piyaadhikary91@gmail.com") {
+    if (!caller) throw new Error("Unauthorized");
+
+    const { user_id, self_delete } = await req.json();
+
+    // Allow self-deletion or admin-only deletion
+    if (self_delete && caller.id === user_id) {
+      // OK - user deleting themselves
+    } else if (caller.email === "piyaadhikary91@gmail.com") {
+      // OK - admin
+    } else {
       throw new Error("Unauthorized: Admin access only");
     }
-
-    const { user_id } = await req.json();
     if (!user_id) throw new Error("user_id is required");
 
     // Delete profile and roles (cascade will handle related data)

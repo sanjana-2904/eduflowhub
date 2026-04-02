@@ -14,6 +14,7 @@ import Courses from "./pages/Courses";
 import CourseDetail from "./pages/CourseDetail";
 import LessonView from "./pages/LessonView";
 import StudentDashboard from "./pages/StudentDashboard";
+import StudentProfile from "./pages/StudentProfile";
 import InstructorDashboard from "./pages/InstructorDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
@@ -40,6 +41,9 @@ const App = () => (
             } />
             <Route path="/student" element={
               <ProtectedRoute allowedRoles={['student']}><StudentDashboard /></ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute allowedRoles={['student']}><StudentProfile /></ProtectedRoute>
             } />
             <Route path="/instructor" element={
               <ProtectedRoute allowedRoles={['instructor']}><InstructorDashboard /></ProtectedRoute>
