@@ -16,6 +16,7 @@ export default function Register() {
     email: '', password: '', phone: '', qualification: '',
     role: 'student' as 'student' | 'instructor',
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
