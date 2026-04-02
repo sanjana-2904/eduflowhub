@@ -14,10 +14,76 @@ import jsPDF from 'jspdf';
 type EnrollmentWithCourse = Tables<'enrollments'> & { courses: Tables<'courses'> | null };
 
 export default function StudentDashboard() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [enrollments, setEnrollments] = useState<EnrollmentWithCourse[]>([]);
   const [results, setResults] = useState<(Tables<'results'> & { quizzes: Tables<'quizzes'> | null })[]>([]);
   const [courseProgress, setCourseProgress] = useState<Record<string, { completed: number; total: number }>>({});
+
+  const generateCertificate = (courseName: string) => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const w = doc.internal.pageSize.getWidth();
+    const h = doc.internal.pageSize.getHeight();
+    const studentName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : 'Student';
+
+    // Border
+    doc.setDrawColor(44, 62, 80);
+    doc.setLineWidth(3);
+    doc.rect(10, 10, w - 20, h - 20);
+    doc.setDrawColor(52, 152, 219);
+    doc.setLineWidth(1);
+    doc.rect(15, 15, w - 30, h - 30);
+
+    // Header
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(52, 152, 219);
+    doc.text('EDUFLOW', w / 2, 35, { align: 'center' });
+
+    // Title
+    doc.setFontSize(36);
+    doc.setTextColor(44, 62, 80);
+    doc.text('Certificate of Completion', w / 2, 55, { align: 'center' });
+
+    // Decorative line
+    doc.setDrawColor(52, 152, 219);
+    doc.setLineWidth(0.5);
+    doc.line(w / 2 - 60, 60, w / 2 + 60, 60);
+
+    // Body
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(14);
+    doc.setTextColor(100, 100, 100);
+    doc.text('This is to certify that', w / 2, 78, { align: 'center' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(28);
+    doc.setTextColor(44, 62, 80);
+    doc.text(studentName, w / 2, 95, { align: 'center' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(14);
+    doc.setTextColor(100, 100, 100);
+    doc.text('has successfully completed the course', w / 2, 112, { align: 'center' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(52, 152, 219);
+    doc.text(courseName, w / 2, 128, { align: 'center' });
+
+    // Date
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Date: ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`, w / 2, 148, { align: 'center' });
+
+    // Footer line
+    doc.setDrawColor(200, 200, 200);
+    doc.line(w / 2 - 40, 165, w / 2 + 40, 165);
+    doc.setFontSize(10);
+    doc.text('EduFlow E-Learning Platform', w / 2, 172, { align: 'center' });
+
+    doc.save(`EduFlow_Certificate_${courseName.replace(/\s+/g, '_')}.pdf`);
+  };
 
   useEffect(() => {
     if (!user) return;
