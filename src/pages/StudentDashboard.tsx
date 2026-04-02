@@ -190,7 +190,20 @@ export default function StudentDashboard() {
                             </div>
                             <Progress value={percent} />
                           </div>
-                        </>
+                          {isComplete && (
+                            <Button
+                              size="sm"
+                              className="w-full mt-2"
+                              onClick={(ev) => {
+                                ev.preventDefault();
+                                ev.stopPropagation();
+                                generateCertificate(e.courses!.title);
+                              }}
+                            >
+                              <Download className="h-4 w-4 mr-1" />
+                              Download Certificate
+                            </Button>
+                          )}
                       );
                     })()}
                   </CardContent>
