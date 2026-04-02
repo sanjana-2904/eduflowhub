@@ -204,6 +204,7 @@ export default function StudentDashboard() {
                               Download Certificate
                             </Button>
                           )}
+                        </>
                       );
                     })()}
                   </CardContent>
