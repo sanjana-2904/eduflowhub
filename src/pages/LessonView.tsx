@@ -61,23 +61,17 @@ export default function LessonView() {
 
   const handleSubmitQuiz = async () => {
     if (!quiz || !user) return;
-    let correct = 0;
-    questions.forEach(q => {
-      if (answers[q.id] === q.correct_answer) correct++;
-    });
-    const pct = questions.length > 0 ? (correct / questions.length) * 100 : 0;
 
-    const { error } = await supabase.from('results').insert({
-      quiz_id: quiz.id, student_id: user.id, score: pct,
-      answers: Object.entries(answers).map(([qid, ans]) => ({ question_id: qid, answer: ans })),
+    const { data, error } = await supabase.functions.invoke('submit-quiz', {
+      body: { quiz_id: quiz.id, answers },
     });
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    if (error || !data?.success) {
+      toast({ title: 'Error', description: data?.error || error?.message || 'Failed to submit quiz', variant: 'destructive' });
       return;
     }
-    setScore(pct);
+    setScore(data.score);
     setSubmitted(true);
-    toast({ title: `Quiz completed! Score: ${pct.toFixed(0)}%` });
+    toast({ title: `Quiz completed! Score: ${data.score.toFixed(0)}%` });
   };
 
   if (!lesson) return <Layout><div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div></Layout>;

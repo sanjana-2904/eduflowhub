@@ -65,9 +65,11 @@ export default function CourseDetail() {
 
     // Free course — enroll directly
     if (Number(course.price) === 0) {
-      const { error } = await supabase.from('enrollments').insert({ student_id: user.id, course_id: course.id }).select().single();
-      if (error) {
-        toast({ title: 'Enrollment failed', description: error.message, variant: 'destructive' });
+      const { data, error } = await supabase.functions.invoke('enroll-course', {
+        body: { course_id: course.id },
+      });
+      if (error || !data?.success) {
+        toast({ title: 'Enrollment failed', description: data?.error || error?.message || 'Failed to enroll', variant: 'destructive' });
         return;
       }
       setEnrolled(true);
