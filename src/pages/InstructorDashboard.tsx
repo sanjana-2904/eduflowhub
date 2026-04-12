@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, BookOpen, Users, Trash2, Edit, FileText, Download, Eye } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
-type EnrolledStudent = { student_id: string; enrollment_date: string; profiles: { first_name: string; last_name: string; email: string } | null };
+type EnrolledStudent = { student_id: string; enrollment_date: string; profiles: { first_name: string; last_name: string; email: string } | null; payment_status: string | null; payment_date: string | null; razorpay_payment_id: string | null; course_price: number };
 type QuizResult = { score: number; created_at: string; student_id: string; profiles: { first_name: string; last_name: string; email: string } | null };
 
 export default function InstructorDashboard() {
