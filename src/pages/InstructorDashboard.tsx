@@ -404,17 +404,29 @@ export default function InstructorDashboard() {
 
         {/* Enrolled Students Dialog */}
         <Dialog open={studentsDialog} onOpenChange={setStudentsDialog}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-2xl">
             <DialogHeader><DialogTitle>Enrolled Students</DialogTitle></DialogHeader>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {enrolledStudents.map((s, i) => (
                 <Card key={i}>
-                  <CardContent className="flex items-center justify-between py-3">
-                    <div>
+                  <CardContent className="flex items-center justify-between py-3 gap-4">
+                    <div className="min-w-0">
                       <p className="font-medium text-sm">{s.profiles?.first_name} {s.profiles?.last_name}</p>
                       <p className="text-xs text-muted-foreground">{s.profiles?.email}</p>
                     </div>
-                    <Badge variant="secondary">{new Date(s.enrollment_date).toLocaleDateString()}</Badge>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="text-right">
+                        <Badge variant={s.payment_status === 'captured' ? 'default' : s.payment_status === 'Free' ? 'secondary' : 'destructive'} className="capitalize text-xs">
+                          {s.payment_status}
+                        </Badge>
+                        {s.payment_date && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {new Date(s.payment_date).toLocaleDateString()} {new Date(s.payment_date).toLocaleTimeString()}
+                          </p>
+                        )}
+                      </div>
+                      <Badge variant="secondary" className="text-xs">{new Date(s.enrollment_date).toLocaleDateString()}</Badge>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
