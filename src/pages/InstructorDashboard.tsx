@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, BookOpen, Users, Trash2, Edit, FileText, Download, Eye } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
-type EnrolledStudent = { student_id: string; enrollment_date: string; profiles: { first_name: string; last_name: string; email: string } | null };
+type EnrolledStudent = { student_id: string; enrollment_date: string; profiles: { first_name: string; last_name: string; email: string } | null; payment_status: string | null; payment_date: string | null; razorpay_payment_id: string | null; course_price: number };
 type QuizResult = { score: number; created_at: string; student_id: string; profiles: { first_name: string; last_name: string; email: string } | null };
 
 export default function InstructorDashboard() {
@@ -90,7 +90,31 @@ export default function InstructorDashboard() {
 
   const viewEnrolledStudents = async (courseId: string) => {
     const { data } = await supabase.from('enrollments').select('student_id, enrollment_date, profiles:student_id(first_name, last_name, email)').eq('course_id', courseId) as any;
-    setEnrolledStudents(data || []);
+    const course = courses.find(c => c.id === courseId);
+    const coursePrice = Number(course?.price || 0);
+
+    // Fetch payments for this course
+    const { data: payments } = await supabase.from('payments').select('*').eq('course_id', courseId);
+    const paymentMap = new Map<string, { payment_status: string; created_at: string; razorpay_payment_id: string | null }>();
+    if (payments) {
+      for (const p of payments) {
+        if (!paymentMap.has(p.student_id) || p.payment_status === 'captured') {
+          paymentMap.set(p.student_id, { payment_status: p.payment_status, created_at: p.created_at, razorpay_payment_id: p.razorpay_payment_id });
+        }
+      }
+    }
+
+    const enriched = (data || []).map((s: any) => {
+      const payment = paymentMap.get(s.student_id);
+      return {
+        ...s,
+        course_price: coursePrice,
+        payment_status: coursePrice === 0 ? 'Free' : (payment?.payment_status || 'No payment'),
+        payment_date: payment?.created_at || null,
+        razorpay_payment_id: payment?.razorpay_payment_id || null,
+      };
+    });
+    setEnrolledStudents(enriched);
     setStudentsDialog(true);
   };
 
@@ -380,17 +404,29 @@ export default function InstructorDashboard() {
 
         {/* Enrolled Students Dialog */}
         <Dialog open={studentsDialog} onOpenChange={setStudentsDialog}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-2xl">
             <DialogHeader><DialogTitle>Enrolled Students</DialogTitle></DialogHeader>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {enrolledStudents.map((s, i) => (
                 <Card key={i}>
-                  <CardContent className="flex items-center justify-between py-3">
-                    <div>
+                  <CardContent className="flex items-center justify-between py-3 gap-4">
+                    <div className="min-w-0">
                       <p className="font-medium text-sm">{s.profiles?.first_name} {s.profiles?.last_name}</p>
                       <p className="text-xs text-muted-foreground">{s.profiles?.email}</p>
                     </div>
-                    <Badge variant="secondary">{new Date(s.enrollment_date).toLocaleDateString()}</Badge>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="text-right">
+                        <Badge variant={s.payment_status === 'captured' ? 'default' : s.payment_status === 'Free' ? 'secondary' : 'destructive'} className="capitalize text-xs">
+                          {s.payment_status}
+                        </Badge>
+                        {s.payment_date && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {new Date(s.payment_date).toLocaleDateString()} {new Date(s.payment_date).toLocaleTimeString()}
+                          </p>
+                        )}
+                      </div>
+                      <Badge variant="secondary" className="text-xs">{new Date(s.enrollment_date).toLocaleDateString()}</Badge>
+                    </div>
                   </CardContent>
                 </Card>
               ))}

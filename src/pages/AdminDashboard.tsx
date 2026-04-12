@@ -1,22 +1,39 @@
 import { useEffect, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Users, BookOpen, Trash2, Shield, Edit } from 'lucide-react';
+import { Users, BookOpen, Trash2, Shield, Edit, CreditCard } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
+
+type EnrollmentWithDetails = {
+  id: string;
+  enrollment_date: string;
+  status: string;
+  student_id: string;
+  course_id: string;
+  student_name: string;
+  student_email: string;
+  course_title: string;
+  course_price: number;
+  payment_status: string | null;
+  payment_date: string | null;
+  razorpay_payment_id: string | null;
+};
 
 export default function AdminDashboard() {
   const { toast } = useToast();
   const [students, setStudents] = useState<Tables<'profiles'>[]>([]);
   const [instructors, setInstructors] = useState<Tables<'profiles'>[]>([]);
   const [courses, setCourses] = useState<Tables<'courses'>[]>([]);
+  const [enrollments, setEnrollments] = useState<EnrollmentWithDetails[]>([]);
   const [editDialog, setEditDialog] = useState(false);
   const [editingProfile, setEditingProfile] = useState<Tables<'profiles'> | null>(null);
   const [editForm, setEditForm] = useState({ first_name: '', last_name: '', phone: '', qualification: '' });
@@ -31,6 +48,46 @@ export default function AdminDashboard() {
     }
     const { data: c } = await supabase.from('courses').select('*').order('created_at', { ascending: false });
     setCourses(c || []);
+
+    // Fetch enrollments with student profiles and course info
+    const { data: enrollData } = await supabase
+      .from('enrollments')
+      .select('id, enrollment_date, status, student_id, course_id')
+      .order('enrollment_date', { ascending: false });
+
+    if (enrollData && profiles && c) {
+      const profileMap = new Map(profiles.map(p => [p.user_id, p]));
+      const courseMap = new Map((c || []).map(co => [co.id, co]));
+
+      // Fetch all payments
+      const { data: payments } = await supabase.from('payments').select('*');
+      const paymentMap = new Map<string, Tables<'payments'>>();
+      if (payments) {
+        for (const p of payments) {
+          const key = `${p.student_id}_${p.course_id}`;
+          if (!paymentMap.has(key) || p.payment_status === 'captured') {
+            paymentMap.set(key, p);
+          }
+        }
+      }
+
+      const enriched: EnrollmentWithDetails[] = enrollData.map(e => {
+        const profile = profileMap.get(e.student_id);
+        const course = courseMap.get(e.course_id);
+        const payment = paymentMap.get(`${e.student_id}_${e.course_id}`);
+        return {
+          ...e,
+          student_name: profile ? `${profile.first_name} ${profile.last_name}` : 'Unknown',
+          student_email: profile?.email || '',
+          course_title: course?.title || 'Unknown',
+          course_price: course?.price || 0,
+          payment_status: Number(course?.price) === 0 ? 'Free' : (payment?.payment_status || 'No payment'),
+          payment_date: payment?.created_at || null,
+          razorpay_payment_id: payment?.razorpay_payment_id || null,
+        };
+      });
+      setEnrollments(enriched);
+    }
   };
 
   const deleteProfile = async (userId: string) => {
@@ -75,6 +132,12 @@ export default function AdminDashboard() {
     else { toast({ title: 'Course deleted' }); fetchData(); }
   };
 
+  const getPaymentBadgeVariant = (status: string | null) => {
+    if (status === 'captured') return 'default';
+    if (status === 'Free') return 'secondary';
+    return 'destructive';
+  };
+
   const renderUserCard = (p: Tables<'profiles'>, roleLabel: string, badgeVariant: 'default' | 'secondary' = 'default') => (
     <Card key={p.id}>
       <CardContent className="flex items-center justify-between py-4">
@@ -107,7 +170,7 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-bold font-display">Admin Dashboard</h1>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
           <Card>
             <CardContent className="pt-6 flex items-center gap-4">
               <Users className="h-8 w-8 text-primary" />
@@ -126,14 +189,79 @@ export default function AdminDashboard() {
               <div><p className="text-2xl font-bold">{courses.length}</p><p className="text-sm text-muted-foreground">Courses</p></div>
             </CardContent>
           </Card>
+          <Card>
+            <CardContent className="pt-6 flex items-center gap-4">
+              <CreditCard className="h-8 w-8 text-success" />
+              <div><p className="text-2xl font-bold">{enrollments.length}</p><p className="text-sm text-muted-foreground">Enrollments</p></div>
+            </CardContent>
+          </Card>
         </div>
 
-        <Tabs defaultValue="students">
+        <Tabs defaultValue="enrollments">
           <TabsList>
+            <TabsTrigger value="enrollments">Enrollments</TabsTrigger>
             <TabsTrigger value="students">Students</TabsTrigger>
             <TabsTrigger value="instructors">Instructors</TabsTrigger>
             <TabsTrigger value="courses">Courses</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="enrollments" className="mt-6">
+            {enrollments.length === 0 ? (
+              <p className="text-muted-foreground">No enrollments yet.</p>
+            ) : (
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Course</TableHead>
+                      <TableHead>Enrollment Date</TableHead>
+                      <TableHead>Payment Status</TableHead>
+                      <TableHead>Payment Date</TableHead>
+                      <TableHead>Payment ID</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {enrollments.map(e => (
+                      <TableRow key={e.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-sm">{e.student_name}</p>
+                            <p className="text-xs text-muted-foreground">{e.student_email}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <p className="text-sm">{e.course_title}</p>
+                          <p className="text-xs text-muted-foreground">₹{e.course_price}</p>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {new Date(e.enrollment_date).toLocaleDateString()}<br />
+                          <span className="text-xs text-muted-foreground">{new Date(e.enrollment_date).toLocaleTimeString()}</span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getPaymentBadgeVariant(e.payment_status)} className="capitalize">
+                            {e.payment_status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {e.payment_date ? (
+                            <>
+                              {new Date(e.payment_date).toLocaleDateString()}<br />
+                              <span className="text-xs text-muted-foreground">{new Date(e.payment_date).toLocaleTimeString()}</span>
+                            </>
+                          ) : '—'}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground font-mono">
+                          {e.razorpay_payment_id || '—'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </TabsContent>
+
           <TabsContent value="students" className="mt-6">
             <div className="space-y-3">
               {students.map(s => renderUserCard(s, 'Student'))}
