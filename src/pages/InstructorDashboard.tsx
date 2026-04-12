@@ -90,7 +90,31 @@ export default function InstructorDashboard() {
 
   const viewEnrolledStudents = async (courseId: string) => {
     const { data } = await supabase.from('enrollments').select('student_id, enrollment_date, profiles:student_id(first_name, last_name, email)').eq('course_id', courseId) as any;
-    setEnrolledStudents(data || []);
+    const course = courses.find(c => c.id === courseId);
+    const coursePrice = Number(course?.price || 0);
+
+    // Fetch payments for this course
+    const { data: payments } = await supabase.from('payments').select('*').eq('course_id', courseId);
+    const paymentMap = new Map<string, { payment_status: string; created_at: string; razorpay_payment_id: string | null }>();
+    if (payments) {
+      for (const p of payments) {
+        if (!paymentMap.has(p.student_id) || p.payment_status === 'captured') {
+          paymentMap.set(p.student_id, { payment_status: p.payment_status, created_at: p.created_at, razorpay_payment_id: p.razorpay_payment_id });
+        }
+      }
+    }
+
+    const enriched = (data || []).map((s: any) => {
+      const payment = paymentMap.get(s.student_id);
+      return {
+        ...s,
+        course_price: coursePrice,
+        payment_status: coursePrice === 0 ? 'Free' : (payment?.payment_status || 'No payment'),
+        payment_date: payment?.created_at || null,
+        razorpay_payment_id: payment?.razorpay_payment_id || null,
+      };
+    });
+    setEnrolledStudents(enriched);
     setStudentsDialog(true);
   };
 
