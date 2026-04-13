@@ -91,7 +91,20 @@ export default function InstructorDashboard() {
   };
 
   const viewEnrolledStudents = async (courseId: string) => {
-    const { data } = await supabase.from('enrollments').select('student_id, enrollment_date, profiles:student_id(first_name, last_name, email)').eq('course_id', courseId) as any;
+    const { data: enrollments } = await supabase.from('enrollments').select('student_id, enrollment_date').eq('course_id', courseId);
+    const studentIds = (enrollments || []).map(e => e.student_id);
+
+    // Fetch profiles for enrolled students
+    let profilesMap = new Map<string, { first_name: string; last_name: string; email: string }>();
+    if (studentIds.length > 0) {
+      const { data: profiles } = await supabase.from('profiles').select('user_id, first_name, last_name, email').in('user_id', studentIds);
+      if (profiles) {
+        for (const p of profiles) {
+          profilesMap.set(p.user_id, { first_name: p.first_name, last_name: p.last_name, email: p.email });
+        }
+      }
+    }
+    const data = (enrollments || []).map(e => ({ ...e, profiles: profilesMap.get(e.student_id) || null }));
     const course = courses.find(c => c.id === courseId);
     const coursePrice = Number(course?.price || 0);
 
