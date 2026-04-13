@@ -12,9 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, BookOpen, Users, Trash2, Edit, FileText, Download, Eye } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import type { Tables } from '@/integrations/supabase/types';
 
-type EnrolledStudent = { student_id: string; enrollment_date: string; profiles: { first_name: string; last_name: string; email: string } | null; payment_status: string | null; payment_date: string | null; razorpay_payment_id: string | null; course_price: number };
+type StudentQuizResult = { quiz_title: string; score: number; date: string };
+type EnrolledStudent = { student_id: string; enrollment_date: string; profiles: { first_name: string; last_name: string; email: string } | null; payment_status: string | null; payment_date: string | null; razorpay_payment_id: string | null; course_price: number; completion_percent: number; completed_lessons: number; total_lessons: number; quiz_results: StudentQuizResult[] };
 type QuizResult = { score: number; created_at: string; student_id: string; profiles: { first_name: string; last_name: string; email: string } | null };
 
 export default function InstructorDashboard() {
@@ -104,14 +106,51 @@ export default function InstructorDashboard() {
       }
     }
 
+    // Fetch lessons for this course
+    const { data: courseLessons } = await supabase.from('lessons').select('id').eq('course_id', courseId);
+    const lessonIds = (courseLessons || []).map(l => l.id);
+    const totalLessons = lessonIds.length;
+
+    // Fetch lesson progress for all students in this course
+    let progressData: any[] = [];
+    if (lessonIds.length > 0) {
+      const { data: lp } = await supabase.from('lesson_progress').select('student_id, lesson_id, completed').in('lesson_id', lessonIds);
+      progressData = lp || [];
+    }
+
+    // Fetch quizzes for this course
+    let courseQuizzes: { id: string; title: string }[] = [];
+    if (lessonIds.length > 0) {
+      const { data: qz } = await supabase.from('quizzes').select('id, title').in('lesson_id', lessonIds);
+      courseQuizzes = qz || [];
+    }
+
+    // Fetch quiz results for all students
+    let allResults: any[] = [];
+    if (courseQuizzes.length > 0) {
+      const { data: res } = await supabase.from('results').select('student_id, quiz_id, score, created_at').in('quiz_id', courseQuizzes.map(q => q.id));
+      allResults = res || [];
+    }
+    const quizMap = new Map(courseQuizzes.map(q => [q.id, q.title]));
+
     const enriched = (data || []).map((s: any) => {
       const payment = paymentMap.get(s.student_id);
+      const completedLessons = progressData.filter(p => p.student_id === s.student_id && p.completed).length;
+      const completionPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+      const studentQuizResults: StudentQuizResult[] = allResults
+        .filter(r => r.student_id === s.student_id)
+        .map(r => ({ quiz_title: quizMap.get(r.quiz_id) || 'Quiz', score: r.score, date: r.created_at }));
+
       return {
         ...s,
         course_price: coursePrice,
         payment_status: coursePrice === 0 ? 'Free' : (payment?.payment_status || 'No payment'),
         payment_date: payment?.created_at || null,
         razorpay_payment_id: payment?.razorpay_payment_id || null,
+        completion_percent: completionPercent,
+        completed_lessons: completedLessons,
+        total_lessons: totalLessons,
+        quiz_results: studentQuizResults,
       };
     });
     setEnrolledStudents(enriched);
@@ -404,29 +443,57 @@ export default function InstructorDashboard() {
 
         {/* Enrolled Students Dialog */}
         <Dialog open={studentsDialog} onOpenChange={setStudentsDialog}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-3xl">
             <DialogHeader><DialogTitle>Enrolled Students</DialogTitle></DialogHeader>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
               {enrolledStudents.map((s, i) => (
                 <Card key={i}>
-                  <CardContent className="flex items-center justify-between py-3 gap-4">
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm">{s.profiles?.first_name} {s.profiles?.last_name}</p>
-                      <p className="text-xs text-muted-foreground">{s.profiles?.email}</p>
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <div className="text-right">
-                        <Badge variant={s.payment_status === 'captured' ? 'default' : s.payment_status === 'Free' ? 'secondary' : 'destructive'} className="capitalize text-xs">
-                          {s.payment_status}
-                        </Badge>
-                        {s.payment_date && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(s.payment_date).toLocaleDateString()} {new Date(s.payment_date).toLocaleTimeString()}
-                          </p>
-                        )}
+                  <CardContent className="py-4 space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm">{s.profiles?.first_name} {s.profiles?.last_name}</p>
+                        <p className="text-xs text-muted-foreground">{s.profiles?.email}</p>
                       </div>
-                      <Badge variant="secondary" className="text-xs">{new Date(s.enrollment_date).toLocaleDateString()}</Badge>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="text-right">
+                          <Badge variant={s.payment_status === 'captured' ? 'default' : s.payment_status === 'Free' ? 'secondary' : 'destructive'} className="capitalize text-xs">
+                            {s.payment_status}
+                          </Badge>
+                          {s.payment_date && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(s.payment_date).toLocaleDateString()} {new Date(s.payment_date).toLocaleTimeString()}
+                            </p>
+                          )}
+                        </div>
+                        <Badge variant="secondary" className="text-xs">{new Date(s.enrollment_date).toLocaleDateString()}</Badge>
+                      </div>
                     </div>
+
+                    {/* Course Progress */}
+                    <div>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="text-muted-foreground">Course Progress</span>
+                        <span className="font-medium">{s.completed_lessons}/{s.total_lessons} lessons · {s.completion_percent}%</span>
+                      </div>
+                      <Progress value={s.completion_percent} className="h-2" />
+                    </div>
+
+                    {/* Quiz Results */}
+                    {s.quiz_results.length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Quiz Results</p>
+                        <div className="flex flex-wrap gap-2">
+                          {s.quiz_results.map((qr, qi) => (
+                            <Badge key={qi} variant={qr.score >= 50 ? 'default' : 'destructive'} className="text-xs">
+                              {qr.quiz_title}: {qr.score}%
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {s.quiz_results.length === 0 && s.total_lessons > 0 && (
+                      <p className="text-xs text-muted-foreground italic">No quiz attempts yet</p>
+                    )}
                   </CardContent>
                 </Card>
               ))}
