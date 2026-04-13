@@ -91,7 +91,20 @@ export default function InstructorDashboard() {
   };
 
   const viewEnrolledStudents = async (courseId: string) => {
-    const { data } = await supabase.from('enrollments').select('student_id, enrollment_date, profiles:student_id(first_name, last_name, email)').eq('course_id', courseId) as any;
+    const { data: enrollments } = await supabase.from('enrollments').select('student_id, enrollment_date').eq('course_id', courseId);
+    const studentIds = (enrollments || []).map(e => e.student_id);
+
+    // Fetch profiles for enrolled students
+    let profilesMap = new Map<string, { first_name: string; last_name: string; email: string }>();
+    if (studentIds.length > 0) {
+      const { data: profiles } = await supabase.from('profiles').select('user_id, first_name, last_name, email').in('user_id', studentIds);
+      if (profiles) {
+        for (const p of profiles) {
+          profilesMap.set(p.user_id, { first_name: p.first_name, last_name: p.last_name, email: p.email });
+        }
+      }
+    }
+    const data = (enrollments || []).map(e => ({ ...e, profiles: profilesMap.get(e.student_id) || null }));
     const course = courses.find(c => c.id === courseId);
     const coursePrice = Number(course?.price || 0);
 
@@ -158,7 +171,14 @@ export default function InstructorDashboard() {
   };
 
   const viewQuizResults = async (quizId: string, quizTitle: string) => {
-    const { data } = await supabase.from('results').select('score, created_at, student_id, profiles:student_id(first_name, last_name, email)').eq('quiz_id', quizId).order('created_at', { ascending: false }) as any;
+    const { data: rawResults } = await supabase.from('results').select('score, created_at, student_id').eq('quiz_id', quizId).order('created_at', { ascending: false });
+    const resultStudentIds = [...new Set((rawResults || []).map(r => r.student_id))];
+    let resultProfilesMap = new Map<string, { first_name: string; last_name: string; email: string }>();
+    if (resultStudentIds.length > 0) {
+      const { data: profs } = await supabase.from('profiles').select('user_id, first_name, last_name, email').in('user_id', resultStudentIds);
+      if (profs) profs.forEach(p => resultProfilesMap.set(p.user_id, { first_name: p.first_name, last_name: p.last_name, email: p.email }));
+    }
+    const data = (rawResults || []).map(r => ({ ...r, profiles: resultProfilesMap.get(r.student_id) || null }));
     setQuizResults(data || []);
     setResultsQuizTitle(quizTitle);
     setResultsDialog(true);
