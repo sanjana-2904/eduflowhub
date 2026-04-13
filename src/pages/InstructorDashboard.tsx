@@ -105,14 +105,51 @@ export default function InstructorDashboard() {
       }
     }
 
+    // Fetch lessons for this course
+    const { data: courseLessons } = await supabase.from('lessons').select('id').eq('course_id', courseId);
+    const lessonIds = (courseLessons || []).map(l => l.id);
+    const totalLessons = lessonIds.length;
+
+    // Fetch lesson progress for all students in this course
+    let progressData: any[] = [];
+    if (lessonIds.length > 0) {
+      const { data: lp } = await supabase.from('lesson_progress').select('student_id, lesson_id, completed').in('lesson_id', lessonIds);
+      progressData = lp || [];
+    }
+
+    // Fetch quizzes for this course
+    let courseQuizzes: { id: string; title: string }[] = [];
+    if (lessonIds.length > 0) {
+      const { data: qz } = await supabase.from('quizzes').select('id, title').in('lesson_id', lessonIds);
+      courseQuizzes = qz || [];
+    }
+
+    // Fetch quiz results for all students
+    let allResults: any[] = [];
+    if (courseQuizzes.length > 0) {
+      const { data: res } = await supabase.from('results').select('student_id, quiz_id, score, created_at').in('quiz_id', courseQuizzes.map(q => q.id));
+      allResults = res || [];
+    }
+    const quizMap = new Map(courseQuizzes.map(q => [q.id, q.title]));
+
     const enriched = (data || []).map((s: any) => {
       const payment = paymentMap.get(s.student_id);
+      const completedLessons = progressData.filter(p => p.student_id === s.student_id && p.completed).length;
+      const completionPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+      const studentQuizResults: StudentQuizResult[] = allResults
+        .filter(r => r.student_id === s.student_id)
+        .map(r => ({ quiz_title: quizMap.get(r.quiz_id) || 'Quiz', score: r.score, date: r.created_at }));
+
       return {
         ...s,
         course_price: coursePrice,
         payment_status: coursePrice === 0 ? 'Free' : (payment?.payment_status || 'No payment'),
         payment_date: payment?.created_at || null,
         razorpay_payment_id: payment?.razorpay_payment_id || null,
+        completion_percent: completionPercent,
+        completed_lessons: completedLessons,
+        total_lessons: totalLessons,
+        quiz_results: studentQuizResults,
       };
     });
     setEnrolledStudents(enriched);
