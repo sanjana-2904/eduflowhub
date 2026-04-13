@@ -484,6 +484,11 @@ export default function InstructorDashboard() {
                               {new Date(s.payment_date).toLocaleDateString()} {new Date(s.payment_date).toLocaleTimeString()}
                             </p>
                           )}
+                          {s.razorpay_payment_id && (
+                            <p className="text-xs text-muted-foreground font-mono">
+                              ID: {s.razorpay_payment_id}
+                            </p>
+                          )}
                         </div>
                         <Badge variant="secondary" className="text-xs">{new Date(s.enrollment_date).toLocaleDateString()}</Badge>
                       </div>
