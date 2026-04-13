@@ -442,29 +442,57 @@ export default function InstructorDashboard() {
 
         {/* Enrolled Students Dialog */}
         <Dialog open={studentsDialog} onOpenChange={setStudentsDialog}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-3xl">
             <DialogHeader><DialogTitle>Enrolled Students</DialogTitle></DialogHeader>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
               {enrolledStudents.map((s, i) => (
                 <Card key={i}>
-                  <CardContent className="flex items-center justify-between py-3 gap-4">
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm">{s.profiles?.first_name} {s.profiles?.last_name}</p>
-                      <p className="text-xs text-muted-foreground">{s.profiles?.email}</p>
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <div className="text-right">
-                        <Badge variant={s.payment_status === 'captured' ? 'default' : s.payment_status === 'Free' ? 'secondary' : 'destructive'} className="capitalize text-xs">
-                          {s.payment_status}
-                        </Badge>
-                        {s.payment_date && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(s.payment_date).toLocaleDateString()} {new Date(s.payment_date).toLocaleTimeString()}
-                          </p>
-                        )}
+                  <CardContent className="py-4 space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm">{s.profiles?.first_name} {s.profiles?.last_name}</p>
+                        <p className="text-xs text-muted-foreground">{s.profiles?.email}</p>
                       </div>
-                      <Badge variant="secondary" className="text-xs">{new Date(s.enrollment_date).toLocaleDateString()}</Badge>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="text-right">
+                          <Badge variant={s.payment_status === 'captured' ? 'default' : s.payment_status === 'Free' ? 'secondary' : 'destructive'} className="capitalize text-xs">
+                            {s.payment_status}
+                          </Badge>
+                          {s.payment_date && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(s.payment_date).toLocaleDateString()} {new Date(s.payment_date).toLocaleTimeString()}
+                            </p>
+                          )}
+                        </div>
+                        <Badge variant="secondary" className="text-xs">{new Date(s.enrollment_date).toLocaleDateString()}</Badge>
+                      </div>
                     </div>
+
+                    {/* Course Progress */}
+                    <div>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="text-muted-foreground">Course Progress</span>
+                        <span className="font-medium">{s.completed_lessons}/{s.total_lessons} lessons · {s.completion_percent}%</span>
+                      </div>
+                      <Progress value={s.completion_percent} className="h-2" />
+                    </div>
+
+                    {/* Quiz Results */}
+                    {s.quiz_results.length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Quiz Results</p>
+                        <div className="flex flex-wrap gap-2">
+                          {s.quiz_results.map((qr, qi) => (
+                            <Badge key={qi} variant={qr.score >= 50 ? 'default' : 'destructive'} className="text-xs">
+                              {qr.quiz_title}: {qr.score}%
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {s.quiz_results.length === 0 && s.total_lessons > 0 && (
+                      <p className="text-xs text-muted-foreground italic">No quiz attempts yet</p>
+                    )}
                   </CardContent>
                 </Card>
               ))}
