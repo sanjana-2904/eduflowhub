@@ -17,6 +17,8 @@ import StudentDashboard from "./pages/StudentDashboard";
 import StudentProfile from "./pages/StudentProfile";
 import InstructorDashboard from "./pages/InstructorDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import Contact from "./pages/Contact";
+import HelpSupport from "./pages/HelpSupport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +37,8 @@ const App = () => (
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/courses" element={<Courses />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/help" element={<HelpSupport />} />
             <Route path="/courses/:id" element={<CourseDetail />} />
             <Route path="/lessons/:id" element={
               <ProtectedRoute><LessonView /></ProtectedRoute>
