@@ -27,8 +27,17 @@ export function Layout({ children }: { children: ReactNode }) {
           </Link>
 
           <nav className="flex items-center gap-4">
+            <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Home
+            </Link>
             <Link to="/courses" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Courses
+            </Link>
+            <Link to="/contact" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Contact
+            </Link>
+            <Link to="/help" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Help & Support
             </Link>
             {user ? (
               <>
@@ -62,9 +71,39 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <main className="flex-1">{children}</main>
 
-      <footer className="border-t py-8 bg-card">
-        <div className="container text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} EduFlow. All rights reserved.
+      <footer className="border-t py-10 bg-card">
+        <div className="container">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="gradient-primary rounded-lg p-1.5">
+                  <BookOpen className="h-4 w-4 text-primary-foreground" />
+                </div>
+                <span className="font-bold font-display">EduFlow</span>
+              </div>
+              <p className="text-sm text-muted-foreground">A modern e-learning platform for students and instructors.</p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-3 text-sm">Quick Links</h4>
+              <div className="flex flex-col gap-2">
+                <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Home</Link>
+                <Link to="/courses" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Courses</Link>
+                <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
+                <Link to="/help" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Help & Support</Link>
+              </div>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-3 text-sm">Get in Touch</h4>
+              <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                <span>support@eduflow.com</span>
+                <span>+91 98765 43210</span>
+                <span>Mumbai, Maharashtra, India</span>
+              </div>
+            </div>
+          </div>
+          <div className="border-t pt-6 text-center text-sm text-muted-foreground">
+            © {new Date().getFullYear()} EduFlow. All rights reserved.
+          </div>
         </div>
       </footer>
     </div>
