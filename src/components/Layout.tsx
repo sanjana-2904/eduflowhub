@@ -97,7 +97,7 @@ export function Layout({ children }: { children: ReactNode }) {
               <div className="flex flex-col gap-2 text-sm text-muted-foreground">
                 <span>support@eduflow.com</span>
                 <span>+91 98765 43210</span>
-                <span>Mumbai, Maharashtra, India</span>
+                <span>Jamshedpur, Jharkhand, India</span>
               </div>
             </div>
           </div>
