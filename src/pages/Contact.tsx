@@ -34,7 +34,7 @@ export default function Contact() {
             {[
               { icon: Mail, title: 'Email', detail: 'support@eduflow.com' },
               { icon: Phone, title: 'Phone', detail: '+91 98765 43210' },
-              { icon: MapPin, title: 'Address', detail: 'Mumbai, Maharashtra, India' },
+              { icon: MapPin, title: 'Address', detail: 'Jamshedpur, Jharkhand, India' },
             ].map((item) => (
               <Card key={item.title} className="text-center">
                 <CardContent className="pt-6">
