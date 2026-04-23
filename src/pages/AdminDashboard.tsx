@@ -65,7 +65,7 @@ export default function AdminDashboard() {
       if (payments) {
         for (const p of payments) {
           const key = `${p.student_id}_${p.course_id}`;
-          if (!paymentMap.has(key) || p.payment_status === 'captured') {
+          if (!paymentMap.has(key) || p.payment_status === 'paid') {
             paymentMap.set(key, p);
           }
         }
@@ -133,7 +133,7 @@ export default function AdminDashboard() {
   };
 
   const getPaymentBadgeVariant = (status: string | null) => {
-    if (status === 'captured') return 'default';
+    if (status === 'paid' || status === 'captured') return 'default';
     if (status === 'Free') return 'secondary';
     return 'destructive';
   };
