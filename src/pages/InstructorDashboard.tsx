@@ -476,7 +476,7 @@ export default function InstructorDashboard() {
                       </div>
                       <div className="flex items-center gap-3 flex-shrink-0">
                         <div className="text-right">
-                          <Badge variant={s.payment_status === 'captured' ? 'default' : s.payment_status === 'Free' ? 'secondary' : 'destructive'} className="capitalize text-xs">
+                          <Badge variant={s.payment_status === 'Paid' ? 'default' : s.payment_status === 'Free' ? 'secondary' : 'destructive'} className="capitalize text-xs">
                             {s.payment_status}
                           </Badge>
                           {s.payment_date && (
