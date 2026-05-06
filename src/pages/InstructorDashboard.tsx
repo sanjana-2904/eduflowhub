@@ -157,7 +157,7 @@ export default function InstructorDashboard() {
       return {
         ...s,
         course_price: coursePrice,
-        payment_status: coursePrice === 0 ? 'Free' : (payment?.payment_status || 'No payment'),
+        payment_status: coursePrice === 0 ? 'Free' : (payment?.payment_status === 'paid' || payment?.payment_status === 'captured' ? 'Paid' : 'Pending'),
         payment_date: payment?.created_at || null,
         razorpay_payment_id: payment?.razorpay_payment_id || null,
         completion_percent: completionPercent,
