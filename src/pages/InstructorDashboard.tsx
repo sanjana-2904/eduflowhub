@@ -113,7 +113,7 @@ export default function InstructorDashboard() {
     const paymentMap = new Map<string, { payment_status: string; created_at: string; razorpay_payment_id: string | null }>();
     if (payments) {
       for (const p of payments) {
-        if (!paymentMap.has(p.student_id) || p.payment_status === 'captured') {
+        if (!paymentMap.has(p.student_id) || p.payment_status === 'paid' || p.payment_status === 'captured') {
           paymentMap.set(p.student_id, { payment_status: p.payment_status, created_at: p.created_at, razorpay_payment_id: p.razorpay_payment_id });
         }
       }
