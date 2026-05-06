@@ -113,7 +113,7 @@ export default function InstructorDashboard() {
     const paymentMap = new Map<string, { payment_status: string; created_at: string; razorpay_payment_id: string | null }>();
     if (payments) {
       for (const p of payments) {
-        if (!paymentMap.has(p.student_id) || p.payment_status === 'captured') {
+        if (!paymentMap.has(p.student_id) || p.payment_status === 'paid' || p.payment_status === 'captured') {
           paymentMap.set(p.student_id, { payment_status: p.payment_status, created_at: p.created_at, razorpay_payment_id: p.razorpay_payment_id });
         }
       }
@@ -157,7 +157,7 @@ export default function InstructorDashboard() {
       return {
         ...s,
         course_price: coursePrice,
-        payment_status: coursePrice === 0 ? 'Free' : (payment?.payment_status || 'No payment'),
+        payment_status: coursePrice === 0 ? 'Free' : (payment?.payment_status === 'paid' || payment?.payment_status === 'captured' ? 'Paid' : 'Pending'),
         payment_date: payment?.created_at || null,
         razorpay_payment_id: payment?.razorpay_payment_id || null,
         completion_percent: completionPercent,
@@ -476,7 +476,7 @@ export default function InstructorDashboard() {
                       </div>
                       <div className="flex items-center gap-3 flex-shrink-0">
                         <div className="text-right">
-                          <Badge variant={s.payment_status === 'captured' ? 'default' : s.payment_status === 'Free' ? 'secondary' : 'destructive'} className="capitalize text-xs">
+                          <Badge variant={s.payment_status === 'Paid' ? 'default' : s.payment_status === 'Free' ? 'secondary' : 'destructive'} className="capitalize text-xs">
                             {s.payment_status}
                           </Badge>
                           {s.payment_date && (
