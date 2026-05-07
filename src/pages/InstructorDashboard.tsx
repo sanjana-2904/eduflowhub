@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, BookOpen, Users, Trash2, Edit, FileText, Download, Eye } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import type { Tables } from '@/integrations/supabase/types';
+import jsPDF from 'jspdf';
 
 type StudentQuizResult = { quiz_title: string; score: number; date: string };
 type EnrolledStudent = { student_id: string; enrollment_date: string; profiles: { first_name: string; last_name: string; email: string } | null; payment_status: string | null; payment_date: string | null; razorpay_payment_id: string | null; course_price: number; completion_percent: number; completed_lessons: number; total_lessons: number; quiz_results: StudentQuizResult[] };
