@@ -46,6 +46,7 @@ export default function InstructorDashboard() {
   // Lesson form
   const [lessonDialog, setLessonDialog] = useState(false);
   const [lessonForm, setLessonForm] = useState({ title: '', content_type: 'text', content_url: '', content_text: '' });
+  const [uploading, setUploading] = useState(false);
 
   // Quiz form
   const [quizDialog, setQuizDialog] = useState(false);
@@ -367,7 +368,32 @@ export default function InstructorDashboard() {
                           </Select>
                         </div>
                         {lessonForm.content_type !== 'text' && (
-                          <div className="space-y-2"><Label>Content URL</Label><Input value={lessonForm.content_url} onChange={e => setLessonForm(f => ({ ...f, content_url: e.target.value }))} /></div>
+                          <div className="space-y-2">
+                            <Label>Upload File ({lessonForm.content_type === 'video' ? 'video' : 'PDF'})</Label>
+                            <Input
+                              type="file"
+                              accept={lessonForm.content_type === 'video' ? 'video/*' : 'application/pdf'}
+                              disabled={uploading}
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file || !user) return;
+                                setUploading(true);
+                                const ext = file.name.split('.').pop();
+                                const path = `${user.id}/${Date.now()}.${ext}`;
+                                const { error } = await supabase.storage.from('lesson-content').upload(path, file, { upsert: false });
+                                if (error) {
+                                  toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
+                                } else {
+                                  const { data } = supabase.storage.from('lesson-content').getPublicUrl(path);
+                                  setLessonForm(f => ({ ...f, content_url: data.publicUrl }));
+                                  toast({ title: 'File uploaded' });
+                                }
+                                setUploading(false);
+                              }}
+                            />
+                            <Label className="text-xs text-muted-foreground">Or paste a URL</Label>
+                            <Input placeholder="https://..." value={lessonForm.content_url} onChange={e => setLessonForm(f => ({ ...f, content_url: e.target.value }))} />
+                          </div>
                         )}
                         {lessonForm.content_type === 'text' && (
                           <div className="space-y-2"><Label>Content</Label><Textarea rows={6} value={lessonForm.content_text} onChange={e => setLessonForm(f => ({ ...f, content_text: e.target.value }))} /></div>
