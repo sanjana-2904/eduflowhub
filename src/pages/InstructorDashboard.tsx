@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, BookOpen, Users, Trash2, Edit, FileText, Download, Eye } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import type { Tables } from '@/integrations/supabase/types';
+import jsPDF from 'jspdf';
 
 type StudentQuizResult = { quiz_title: string; score: number; date: string };
 type EnrolledStudent = { student_id: string; enrollment_date: string; profiles: { first_name: string; last_name: string; email: string } | null; payment_status: string | null; payment_date: string | null; razorpay_payment_id: string | null; course_price: number; completion_percent: number; completed_lessons: number; total_lessons: number; quiz_results: StudentQuizResult[] };
@@ -192,6 +193,32 @@ export default function InstructorDashboard() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = `${resultsQuizTitle}-results.csv`; a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const issueCertificate = (studentName: string, courseName: string) => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const w = doc.internal.pageSize.getWidth();
+    const h = doc.internal.pageSize.getHeight();
+    doc.setDrawColor(44, 62, 80); doc.setLineWidth(3); doc.rect(10, 10, w - 20, h - 20);
+    doc.setDrawColor(52, 152, 219); doc.setLineWidth(1); doc.rect(15, 15, w - 30, h - 30);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(52, 152, 219);
+    doc.text('EDUFLOW', w / 2, 35, { align: 'center' });
+    doc.setFontSize(36); doc.setTextColor(44, 62, 80);
+    doc.text('Certificate of Completion', w / 2, 55, { align: 'center' });
+    doc.setDrawColor(52, 152, 219); doc.setLineWidth(0.5); doc.line(w / 2 - 60, 60, w / 2 + 60, 60);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(14); doc.setTextColor(100, 100, 100);
+    doc.text('This is to certify that', w / 2, 78, { align: 'center' });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(28); doc.setTextColor(44, 62, 80);
+    doc.text(studentName || 'Student', w / 2, 95, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(14); doc.setTextColor(100, 100, 100);
+    doc.text('has successfully completed the course', w / 2, 112, { align: 'center' });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.setTextColor(52, 152, 219);
+    doc.text(courseName, w / 2, 128, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.setTextColor(100, 100, 100);
+    doc.text(`Date: ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`, w / 2, 148, { align: 'center' });
+    doc.setDrawColor(200, 200, 200); doc.line(w / 2 - 40, 165, w / 2 + 40, 165);
+    doc.setFontSize(10); doc.text('EduFlow E-Learning Platform', w / 2, 172, { align: 'center' });
+    doc.save(`Certificate_${(studentName || 'student').replace(/\s+/g, '_')}_${courseName.replace(/\s+/g, '_')}.pdf`);
   };
 
   const saveCourse = async () => {
@@ -518,6 +545,15 @@ export default function InstructorDashboard() {
                     )}
                     {s.quiz_results.length === 0 && s.total_lessons > 0 && (
                       <p className="text-xs text-muted-foreground italic">No quiz attempts yet</p>
+                    )}
+                    {s.completion_percent === 100 && s.total_lessons > 0 && (
+                      <Button size="sm" variant="outline" className="gap-1 w-full"
+                        onClick={() => {
+                          const course = courses.find(c => c.id === selectedCourse);
+                          issueCertificate(`${s.profiles?.first_name || ''} ${s.profiles?.last_name || ''}`.trim(), course?.title || 'Course');
+                        }}>
+                        <Download className="h-3 w-3" /> Issue Certificate
+                      </Button>
                     )}
                   </CardContent>
                 </Card>
