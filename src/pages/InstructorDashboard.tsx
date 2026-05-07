@@ -195,7 +195,31 @@ export default function InstructorDashboard() {
     URL.revokeObjectURL(url);
   };
 
-  const saveCourse = async () => {
+  const issueCertificate = (studentName: string, courseName: string) => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const w = doc.internal.pageSize.getWidth();
+    const h = doc.internal.pageSize.getHeight();
+    doc.setDrawColor(44, 62, 80); doc.setLineWidth(3); doc.rect(10, 10, w - 20, h - 20);
+    doc.setDrawColor(52, 152, 219); doc.setLineWidth(1); doc.rect(15, 15, w - 30, h - 30);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(52, 152, 219);
+    doc.text('EDUFLOW', w / 2, 35, { align: 'center' });
+    doc.setFontSize(36); doc.setTextColor(44, 62, 80);
+    doc.text('Certificate of Completion', w / 2, 55, { align: 'center' });
+    doc.setDrawColor(52, 152, 219); doc.setLineWidth(0.5); doc.line(w / 2 - 60, 60, w / 2 + 60, 60);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(14); doc.setTextColor(100, 100, 100);
+    doc.text('This is to certify that', w / 2, 78, { align: 'center' });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(28); doc.setTextColor(44, 62, 80);
+    doc.text(studentName || 'Student', w / 2, 95, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(14); doc.setTextColor(100, 100, 100);
+    doc.text('has successfully completed the course', w / 2, 112, { align: 'center' });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.setTextColor(52, 152, 219);
+    doc.text(courseName, w / 2, 128, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.setTextColor(100, 100, 100);
+    doc.text(`Date: ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`, w / 2, 148, { align: 'center' });
+    doc.setDrawColor(200, 200, 200); doc.line(w / 2 - 40, 165, w / 2 + 40, 165);
+    doc.setFontSize(10); doc.text('EduFlow E-Learning Platform', w / 2, 172, { align: 'center' });
+    doc.save(`Certificate_${(studentName || 'student').replace(/\s+/g, '_')}_${courseName.replace(/\s+/g, '_')}.pdf`);
+  };
     if (!user) return;
     const payload = { title: courseForm.title, description: courseForm.description, price: Number(courseForm.price), category: courseForm.category, instructor_id: user.id };
     if (editingCourse) {
