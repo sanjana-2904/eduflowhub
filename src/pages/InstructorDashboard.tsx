@@ -546,6 +546,15 @@ export default function InstructorDashboard() {
                     {s.quiz_results.length === 0 && s.total_lessons > 0 && (
                       <p className="text-xs text-muted-foreground italic">No quiz attempts yet</p>
                     )}
+                    {s.completion_percent === 100 && s.total_lessons > 0 && (
+                      <Button size="sm" variant="outline" className="gap-1 w-full"
+                        onClick={() => {
+                          const course = courses.find(c => c.id === selectedCourse);
+                          issueCertificate(`${s.profiles?.first_name || ''} ${s.profiles?.last_name || ''}`.trim(), course?.title || 'Course');
+                        }}>
+                        <Download className="h-3 w-3" /> Issue Certificate
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ))}
