@@ -220,6 +220,8 @@ export default function InstructorDashboard() {
     doc.setFontSize(10); doc.text('EduFlow E-Learning Platform', w / 2, 172, { align: 'center' });
     doc.save(`Certificate_${(studentName || 'student').replace(/\s+/g, '_')}_${courseName.replace(/\s+/g, '_')}.pdf`);
   };
+
+  const saveCourse = async () => {
     if (!user) return;
     const payload = { title: courseForm.title, description: courseForm.description, price: Number(courseForm.price), category: courseForm.category, instructor_id: user.id };
     if (editingCourse) {
