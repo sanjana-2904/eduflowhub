@@ -46,6 +46,7 @@ export default function InstructorDashboard() {
   // Lesson form
   const [lessonDialog, setLessonDialog] = useState(false);
   const [lessonForm, setLessonForm] = useState({ title: '', content_type: 'text', content_url: '', content_text: '' });
+  const [uploading, setUploading] = useState(false);
 
   // Quiz form
   const [quizDialog, setQuizDialog] = useState(false);
