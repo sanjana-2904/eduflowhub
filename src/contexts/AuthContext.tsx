@@ -14,6 +14,8 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, metadata: Record<string, string>) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  sendOTP: (email: string) => Promise<void>;
+  verifyOTP: (email: string, token: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -35,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
       if (data && !error) {
         setProfile(data);
-        setRole(data.role);
+        setRole(data.role as AppRole);
       }
     } catch (err) {
       console.error('Failed to fetch profile:', err);
@@ -43,14 +45,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Set up auth listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Use setTimeout to avoid Supabase deadlock, but always fetch
           setTimeout(() => fetchProfile(session.user.id), 0);
         } else {
           setProfile(null);
@@ -60,7 +60,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Then check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -93,6 +92,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const sendOTP = async (email: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false,
+      },
+    });
+    if (error) throw error;
+  };
+
+  const verifyOTP = async (email: string, token: string) => {
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: 'email',
+    });
+    if (error) throw error;
+    if (data.user) {
+      await fetchProfile(data.user.id);
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setProfile(null);
@@ -100,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, profile, role, loading, signUp, signIn, signOut, sendOTP, verifyOTP }}>
       {children}
     </AuthContext.Provider>
   );
