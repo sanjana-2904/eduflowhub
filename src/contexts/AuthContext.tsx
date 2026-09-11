@@ -13,9 +13,8 @@ interface AuthContextType {
   role: AppRole | null;
   loading: boolean;
   signUp: (email: string, password: string, metadata: Record<string, string>) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
-  sendOTP: (email: string) => Promise<void>;
-  verifyOTP: (email: string, token: string) => Promise<void>;
+  requestLoginCode: (email: string) => Promise<void>;
+  verifyLoginCode: (email: string, token: string) => Promise<AppRole>;
   signOut: () => Promise<void>;
 }
 
@@ -28,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string): Promise<Profile | null> => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -38,10 +37,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data && !error) {
         setProfile(data);
         setRole(data.role as AppRole);
+        return data;
       }
     } catch (err) {
       console.error('Failed to fetch profile:', err);
     }
+    return null;
   };
 
   useEffect(() => {
@@ -84,17 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    if (data.user) {
-      await fetchProfile(data.user.id);
-    }
-  };
-
-  const sendOTP = async (email: string) => {
+  const requestLoginCode = async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
-      email,
+      email: email.trim().toLowerCase(),
       options: {
         shouldCreateUser: false,
       },
@@ -102,16 +95,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const verifyOTP = async (email: string, token: string) => {
+  const verifyLoginCode = async (email: string, token: string): Promise<AppRole> => {
     const { data, error } = await supabase.auth.verifyOtp({
-      email,
+      email: email.trim().toLowerCase(),
       token,
       type: 'email',
     });
     if (error) throw error;
-    if (data.user) {
-      await fetchProfile(data.user.id);
+    if (!data.user) throw new Error('Unable to verify this login code.');
+
+    const verifiedUser = await supabase.auth.getUser();
+    if (verifiedUser.error || !verifiedUser.data.user) {
+      throw verifiedUser.error ?? new Error('Unable to validate this login.');
     }
+
+    const loadedProfile = await fetchProfile(verifiedUser.data.user.id);
+    if (!loadedProfile) throw new Error('Your account profile could not be loaded.');
+    return loadedProfile.role as AppRole;
   };
 
   const signOut = async () => {
@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, loading, signUp, signIn, signOut, sendOTP, verifyOTP }}>
+    <AuthContext.Provider value={{ user, session, profile, role, loading, signUp, signOut, requestLoginCode, verifyLoginCode }}>
       {children}
     </AuthContext.Provider>
   );
