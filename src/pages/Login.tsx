@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookOpen, ArrowLeft, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { dashboardPathForRole, loginCodeErrorMessage } from '@/lib/auth-login';
 import {
   InputOTP,
   InputOTPGroup,
@@ -19,33 +20,27 @@ export default function Login() {
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
-  const { sendOTP, verifyOTP, role } = useAuth();
+  const { requestLoginCode, verifyLoginCode } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    let interval: number;
-    if (resendTimer > 0) {
-      interval = window.setInterval(() => {
-        setResendTimer((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
+    if (resendTimer <= 0) return;
+    const timeout = window.setTimeout(() => setResendTimer((current) => Math.max(0, current - 1)), 1000);
+    return () => window.clearTimeout(timeout);
   }, [resendTimer]);
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await sendOTP(email);
+      await requestLoginCode(email);
       setStep('otp');
+      setOtp('');
       setResendTimer(60);
-      toast({ title: 'OTP Sent', description: 'Please check your email for the verification code.' });
-    } catch (err: any) {
-      const message = err.message === 'Signups not allowed for otp' || err.message?.includes('User not found') 
-        ? 'Account not found. Please register first.' 
-        : err.message;
-      toast({ title: 'Error', description: message, variant: 'destructive' });
+      toast({ title: 'Verification code sent', description: 'Check your email for the six-digit code.' });
+    } catch (err: unknown) {
+      toast({ title: 'Unable to send code', description: loginCodeErrorMessage(err), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -57,34 +52,27 @@ export default function Login() {
     
     setLoading(true);
     try {
-      await verifyOTP(email, otp);
+      const verifiedRole = await verifyLoginCode(email, otp);
       toast({ title: 'Welcome back!' });
-      // Redirect logic happens in a separate useEffect or right here if role is available
-    } catch (err: any) {
-      toast({ title: 'Verification failed', description: err.message, variant: 'destructive' });
+      navigate(dashboardPathForRole(verifiedRole), { replace: true });
+    } catch (err: unknown) {
+      toast({ title: 'Verification failed', description: loginCodeErrorMessage(err), variant: 'destructive' });
+      setOtp('');
+    } finally {
       setLoading(false);
     }
   };
-
-  // Handle redirection after successful login and role load
-  useEffect(() => {
-    if (role) {
-      if (role === 'admin') navigate('/admin');
-      else if (role === 'instructor') navigate('/instructor');
-      else if (role === 'student') navigate('/student');
-      else navigate('/');
-    }
-  }, [role, navigate]);
 
   const handleResend = async () => {
     if (resendTimer > 0) return;
     setLoading(true);
     try {
-      await sendOTP(email);
+      await requestLoginCode(email);
+      setOtp('');
       setResendTimer(60);
-      toast({ title: 'OTP Resent', description: 'A new code has been sent to your email.' });
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({ title: 'New code sent', description: 'The previous code can no longer be used.' });
+    } catch (err: unknown) {
+      toast({ title: 'Unable to resend code', description: loginCodeErrorMessage(err), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -102,12 +90,12 @@ export default function Login() {
           </Link>
           <div>
             <CardTitle className="font-display text-2xl">
-              {step === 'email' ? 'Welcome Back' : 'Verify Email'}
+              {step === 'email' ? 'Welcome Back' : 'Enter Verification Code'}
             </CardTitle>
             <CardDescription>
               {step === 'email' 
-                ? 'Sign in to continue your learning journey' 
-                : `We've sent a code to ${email}`}
+                ? 'Enter your registered email to continue' 
+                : `We sent a six-digit code to ${email}`}
             </CardDescription>
           </div>
         </CardHeader>
@@ -126,7 +114,7 @@ export default function Login() {
                 />
               </div>
               <Button type="submit" className="w-full gradient-primary text-primary-foreground border-0" disabled={loading}>
-                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Send OTP'}
+                   {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending...</> : 'Send Verification Code'}
               </Button>
             </form>
           ) : (
@@ -137,8 +125,10 @@ export default function Login() {
                   maxLength={6}
                   value={otp}
                   onChange={setOtp}
-                  onComplete={() => handleVerifyOTP()}
                   disabled={loading}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoFocus
                 >
                   <InputOTPGroup>
                     <InputOTPSlot index={0} />
@@ -157,26 +147,28 @@ export default function Login() {
                   className="w-full gradient-primary text-primary-foreground border-0" 
                   disabled={loading || otp.length !== 6}
                 >
-                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Verify & Sign In'}
+                  {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Verifying...</> : 'Verify & Login'}
                 </Button>
                 
                 <div className="flex flex-col items-center gap-2">
-                  <button
+                  <Button
                     type="button"
+                    variant="link"
                     onClick={handleResend}
                     disabled={loading || resendTimer > 0}
-                    className="text-sm text-primary font-medium hover:underline disabled:text-muted-foreground disabled:no-underline"
+                    className="h-auto p-0 text-sm"
                   >
                     {resendTimer > 0 ? `Resend code in ${resendTimer}s` : 'Resend code'}
-                  </button>
+                  </Button>
                   
-                  <button
+                  <Button
                     type="button"
-                    onClick={() => setStep('email')}
-                    className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+                    variant="ghost"
+                    onClick={() => { setStep('email'); setOtp(''); setResendTimer(0); }}
+                    className="h-auto px-2 py-1 text-sm text-muted-foreground"
                   >
                     <ArrowLeft className="h-3 w-3" /> Change email
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
